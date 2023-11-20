@@ -1,20 +1,24 @@
-# Base image
-FROM node:18
 
-# Create app directory
-WORKDIR /usr/src/app
+# Use a base image with Node.js and npm
+FROM node:14
 
-# A wildcard is used to ensure both package.json AND package-lock.json are copied
+# Set the working directory to the app directory
+WORKDIR /app
+
+# Copy package.json and package-lock.json to the working directory
 COPY package*.json ./
 
-# Install app dependencies
+# Install dependencies
 RUN npm install
 
-# Bundle app source
+# Copy the rest of the application code to the working directory
 COPY . .
 
-# Creates a "dist" folder with the production build
+# Build the application
 RUN npm run build
 
-# Start the server using the production build
-CMD [ "node", "dist/main.js" ]
+# Expose the port that the Nest.js application is listening on
+EXPOSE 3000
+
+# Set the command to start the application
+CMD [ "npm", "run", "start:prod" ]
