@@ -1,24 +1,42 @@
+# PRODUCTION DOCKERFILE
+# ---------------------
+# This Dockerfile allows to build a Docker image of the NestJS application
+# and based on a NodeJS 16 image. The multi-stage mechanism allows to build
+# the application in a "builder" stage and then create a lightweight production
+# image containing the required dependencies and the JS build files.
+# 
+# Dockerfile best practices
+# https://docs.docker.com/develop/develop-images/dockerfile_best-practices/
+# Dockerized NodeJS best practices
+# https://github.com/nodejs/docker-node/blob/master/docs/BestPractices.md
+# https://www.bretfisher.com/node-docker-good-defaults/
+# http://goldbergyoni.com/checklist-best-practice-of-node-js-in-production/
 
-# Use a base image with Node.js and npm
-FROM node:14
+FROM node:16-alpine as builder
 
-# Set the working directory to the app directory
-WORKDIR /app
+ENV NODE_ENV build
 
-# Copy package.json and package-lock.json to the working directory
+USER node
+WORKDIR /home/node
+
 COPY package*.json ./
-
-# Install dependencies
 RUN npm ci
 
-# Copy the rest of the application code to the working directory
-COPY . .
+COPY --chown=node:node . .
+RUN npm run build \
+    && npm prune --production
 
-# Build the application
-RUN npm run build
+# ---
 
-# Expose the port that the Nest.js application is listening on
-EXPOSE 8080
+FROM node:16-alpine
 
-# Set the command to start the application
-CMD [ "npm", "run", "start:dev" ]
+ENV NODE_ENV production
+
+USER node
+WORKDIR /home/node
+
+COPY --from=builder --chown=node:node /home/node/package*.json ./
+COPY --from=builder --chown=node:node /home/node/node_modules/ ./node_modules/
+COPY --from=builder --chown=node:node /home/node/dist/ ./dist/
+
+CMD ["node", "dist/main.js"]
